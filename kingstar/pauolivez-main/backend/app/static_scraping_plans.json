@@ -1,0 +1,33 @@
+{
+  "books.toscrape.com": {
+    "selectores": {
+      "nombre": ".product_pod h3 a",
+      "precio": ".price_color",
+      "disponibilidad": ".availability"
+    },
+    "scroll": false,
+    "click_mas": null,
+    "apartados": [".product_pod"],
+    "paginador": {
+      "tipo": "path_num",
+      "formato": "/page-{NUM}.html",
+      "inicio_en": 2,
+      "incremento": 1
+    }
+  },
+  "carrefour.es": {
+    "selectores": {
+      "nombre": ".product-card__title",
+      "precio": ".prices__price--current",
+      "disponibilidad": ".product-card__title"
+    },
+    "scroll": true,
+    "click_mas": "span[aria-label='Página siguiente']",
+    "apartados": [".product-card"],
+    "paginador": {
+      "tipo": "offset",
+      "incremento": 24,
+      "formato": "offset={OFFSET}"
+    }
+  }
+}

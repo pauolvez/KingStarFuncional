@@ -1,0 +1,9 @@
+pip install fastapi
+pip install uvicorn
+pip install sqlalchemy
+pip install asyncpg
+pip install fastapi-users==14.0.1
+pip install email-validator==2.2.0
+pip install python-dotenv
+pip install pydantic-settings
+pip install playwright
