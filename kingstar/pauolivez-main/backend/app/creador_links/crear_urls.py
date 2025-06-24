@@ -19,29 +19,36 @@ def generar_urls(base_url, paginador, total_paginas):
     tipo = paginador["tipo"]
     formato = paginador.get("formato", "")
     incremento = paginador.get("incremento", 1)
-    inicio_en = paginador.get("inicio_en", 1)
+    inicio_en = paginador.get("inicio_en", 2)
 
-    for i in range(total_paginas):
+    # Página base (sin paginación explícita)
+    urls.append(base_url)
+
+    # Generar páginas paginadas (desde inicio_en hasta total_paginas)
+    for i in range(1, total_paginas):
         if tipo == "offset":
             offset = i * incremento
-            if offset == 0:
-                urls.append(base_url)
-            else:
-                sep = "&" if "?" in base_url else "?"
-                urls.append(base_url + sep + formato.replace("{OFFSET}", str(offset)))
+            sep = "&" if "?" in base_url else "?"
+            urls.append(base_url + sep + formato.replace("{OFFSET}", str(offset)))
         elif tipo == "path_num":
-            numero = i + inicio_en
-            if i == 0 and inicio_en == 1:
-                urls.append(base_url)
+            numero = i + inicio_en - 1
+            if base_url.endswith("/"):
+                base_url = base_url[:-1]
+            urls.append(f"{base_url}{formato.replace('{NUM}', str(numero))}")
+        elif tipo == "query_param":
+            numero = i + inicio_en - 1
+            if "?" in base_url:
+                base, existing_query = base_url.split("?", 1)
+                new_query = f"PageIndex={numero}&{existing_query}"
+                urls.append(f"{base}?{new_query}")
             else:
-                if base_url.endswith("/"):
-                    base_url = base_url[:-1]
-                urls.append(f"{base_url}{formato.replace('{NUM}', str(numero))}")
+                urls.append(f"{base_url}?PageIndex={numero}")
         else:
             print("❌ Tipo de paginador no soportado.")
             return []
 
     return urls
+
 
 def main():
     planes = cargar_planes()

@@ -118,6 +118,30 @@ def extraer_con_playwright(plan):
             page.goto(pagina, timeout=60000)
             print(f"[PLAYWRIGHT] URL actual: {page.url}")
             print("[PLAYWRIGHT] Esperando a que la página cargue completamente...")
+
+            # Verificación de presencia de precio tras máximo 20 segundos
+            precio_selectores = plan["selectores"].get("precio")
+            print(f"[VERIFICACIÓN] Buscando selector de precio(s): {precio_selectores}")
+            precio_visible = False
+            for i in range(20):  # Esperar hasta 20s en intervalos de 1s
+
+                if isinstance(precio_selectores, list):
+                    for sel in precio_selectores:
+                        if page.query_selector(sel):
+                            precio_visible = True
+                            print(f"[✅] Selector de precio detectado: {sel} (tras {i+1} intentos)")
+                            break
+                else:
+                    if page.query_selector(precio_selectores):
+                        precio_visible = True
+                if precio_visible:
+                    print(f"[VERIFICACIÓN] Precio detectado tras {i+1} segundos.")
+                    break
+                time.sleep(1)
+
+            if not precio_visible:
+                print("[❌] No se detectó ningún precio tras 20 segundos. Saltando página.")
+                continue  # Pasar al siguiente enlace del plan
             for _ in range(3):
                 page.mouse.wheel(0, 5000)
                 time.sleep(1.5)
@@ -235,8 +259,8 @@ def ejecutar_scraping(url: str, instrucciones: str):
         if not plan:
             return {"error": "No hay plan estático para Carrefour"}
         print("[SCRAPER] Usando Playwright para Carrefour")
-        productos = extraer_con_playwright(plan)
-        return {"productos": productos, "fuente": "playwright"}
+        resultado = ejecutar_scraping_una_pagina(url, instrucciones)
+        return resultado
 
     print("[SCRAPER] Iniciando FlareSolverr...")
     flaresolverr_proc = start_flaresolverr()
@@ -355,6 +379,33 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
             print("[SCRAPER] No se detectó botón de cookies.")
 
         # Scroll adicional
+        precio_selectores = plan["selectores"].get("precio")
+        print(f"[VERIFICACIÓN] Buscando selector de precio(s): {precio_selectores}")
+        precio_visible = False
+
+        for i in range(20):  # Hasta 20 segundos
+            if isinstance(precio_selectores, list):
+                for sel in precio_selectores:
+                    if page.query_selector(sel):
+                        precio_visible = True
+                        print(f"[✅] Selector de precio detectado: {sel} (tras {i+1} intentos)")
+                        break
+            else:
+                if page.query_selector(precio_selectores):
+                    precio_visible = True
+                    print(f"[✅] Selector de precio detectado: {precio_selectores} (tras {i+1} intentos)")
+
+            if precio_visible:
+                print(f"[VERIFICACIÓN] Precio detectado tras {i+1} segundos.")
+                break
+            time.sleep(1)
+
+        if not precio_visible:
+            print("[❌] No se detectó ningún precio tras 20 segundos. Cancelando scraping.")
+            browser.close()
+            return {"productos": [], "fuente": "playwright", "url": url}
+
+        # Scroll adicional
         print("[SCRAPER] Haciendo scroll para cargar contenido dinámico.")
         if plan.get("scroll", False):
             print("[SCRAPER] Bajando lentamente...")
@@ -363,6 +414,7 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
                 print(f"[SCROLL ↓] Paso {i+1}")
                 time.sleep(1.2)
             time.sleep(2)
+        print("[SCRAPER] Scroll completo.")
 
             #print("[SCRAPER] Subiendo lentamente...")
             #for i in range(10):
@@ -374,10 +426,46 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
         
         # Tiempo extra de seguridad
         print("[SCRAPER] Esperando tiempo adicional por seguridad...")
-        time.sleep(3)
+        time.sleep(1.5)
+
+        # Verificación de presencia de precio antes de continuar
+        precio_selectores = plan["selectores"].get("precio")
+        print(f"[VERIFICACIÓN] Buscando selector de precio(s): {precio_selectores}")
+        precio_visible = False
+
+        for i in range(20):  # Hasta 20 segundos
+            if isinstance(precio_selectores, list):
+                for sel in precio_selectores:
+                    if page.query_selector(sel):
+                        precio_visible = True
+                        print(f"[✅] Selector de precio detectado: {sel} (tras {i+1} intentos)")
+                        break
+            else:
+                if page.query_selector(precio_selectores):
+                    precio_visible = True
+                    print(f"[✅] Selector de precio detectado: {precio_selectores} (tras {i+1} intentos)")
+
+            if precio_visible:
+                print(f"[VERIFICACIÓN] Precio detectado tras {i+1} segundos.")
+                break
+            else:
+                if page.query_selector(precio_selectores):
+                    precio_visible = True
+                    print(f"[✅] Selector de precio detectado: {precio_selectores} (tras {i+1} intentos)")
+            if precio_visible:
+                print(f"[VERIFICACIÓN] Precio detectado tras {i+1} segundos.")
+                break
+            time.sleep(1)
+
+        if not precio_visible:
+            print("[❌] No se detectó ningún precio tras 20 segundos. Cancelando scraping.")
+            browser.close()
+            return {"productos": [], "fuente": "playwright", "url": url}
 
         # Extraer productos
         items = page.query_selector_all(plan["apartados"][0])
+        print(f"[SCRAPER] Contenedores encontrados: {len(items)}")
+
         print(f"[SCRAPER] Contenedores encontrados: {len(items)}")
 
         from urllib.parse import urlparse

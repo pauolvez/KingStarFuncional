@@ -29,5 +29,22 @@
       "incremento": 24,
       "formato": "offset={OFFSET}"
     }
+  },
+  "fnac.es": {
+    "selectores": {
+      "nombre": ".Article-title",
+      "precio": ".userPrice",
+      "imagen": ".Article-itemVisualImg",
+      "url": ".Article-title"
+    },
+    "scroll": true,
+    "click_mas": null,
+    "apartados": [".productGridItem"],
+    "paginador": {
+      "tipo": "query_param",
+      "formato": "PageIndex={NUM}",
+      "inicio_en": 2,
+      "incremento": 1
+    }
   }
 }
