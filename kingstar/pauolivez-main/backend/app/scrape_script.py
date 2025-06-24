@@ -150,21 +150,43 @@ def extraer_con_playwright(plan):
                         nombre = item.query_selector(plan["selectores"]["nombre"]).inner_text().strip()
                     except:
                         nombre = "Desconocido"
+                    precio = "No disponible"
+                    precios_selectores = plan["selectores"].get("precio")
+                    if isinstance(precios_selectores, list):
+                        for sel in precios_selectores:
+                            try:
+                                precio_raw = item.query_selector(sel)
+                                if precio_raw:
+                                    precio = precio_raw.inner_text().strip()
+                                    break
+                            except:
+                                continue
+                    else:
+                        try:
+                            precio = item.query_selector(precios_selectores).inner_text().strip()
+                        except:
+                            precio = "No disponible"
                     try:
-                        precio = item.query_selector(plan["selectores"]["precio"]).inner_text().strip()
+                        imagen = item.query_selector(plan["selectores"].get("imagen", "img")).get_attribute("src")
+                        if imagen and imagen.startswith("//"):
+                            imagen = "https:" + imagen
                     except:
-                        precio = "No disponible"
+                        imagen = "No disponible"
                     try:
-                        disponibilidad = item.query_selector(plan["selectores"]["disponibilidad"]).inner_text().strip()
+                        url_producto = item.query_selector(plan["selectores"].get("url")).get_attribute("href")
+                        if url_producto and not url_producto.startswith("http"):
+                            from urllib.parse import urlparse
+                            dominio = urlparse(url).netloc
+                            url_producto = f"https://{dominio}{url_producto}"
                     except:
-                        disponibilidad = "Desconocida"
+                        url_producto = "No disponible"
 
                     productos.append({
                         "nombre": nombre,
                         "precio": precio,
-                        "disponibilidad": disponibilidad
+                        "imagen": imagen,
+                        "url": url_producto
                     })
-
                 # Manejo de click_mas: selector definido o autodetectar
                 click_selector = plan.get("click_mas")
                 next_button = None
@@ -336,14 +358,18 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
         print("[SCRAPER] Haciendo scroll para cargar contenido dinámico.")
         if plan.get("scroll", False):
             print("[SCRAPER] Bajando lentamente...")
-            for _ in range(5):
-                page.mouse.wheel(0, 1000)
-                time.sleep(1.0)
-            time.sleep(1.5)
-        print("[SCRAPER] Subiendo lentamente...")
-        for _ in range(5):
-            page.mouse.wheel(0, -1000)
-            time.sleep(1.0)
+            for i in range(10):
+                page.mouse.wheel(0, 500)  # Scroll más suave
+                print(f"[SCROLL ↓] Paso {i+1}")
+                time.sleep(1.2)
+            time.sleep(2)
+
+            #print("[SCRAPER] Subiendo lentamente...")
+            #for i in range(10):
+                #page.mouse.wheel(0, -500)
+                #print(f"[SCROLL ↑] Paso {i+1}")
+                #time.sleep(1.2)
+            #time.sleep(2)
         print("[SCRAPER] Scroll completo.")
         
         # Tiempo extra de seguridad
@@ -354,24 +380,50 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
         items = page.query_selector_all(plan["apartados"][0])
         print(f"[SCRAPER] Contenedores encontrados: {len(items)}")
 
+        from urllib.parse import urlparse
+
         for item in items:
             try:
                 nombre = item.query_selector(plan["selectores"]["nombre"]).inner_text().strip()
             except:
                 nombre = "Desconocido"
+
+            precio = "No disponible"
+            precios_selectores = plan["selectores"].get("precio")
+            if isinstance(precios_selectores, list):
+                for sel in precios_selectores:
+                    try:
+                        precio_raw = item.query_selector(sel)
+                        if precio_raw:
+                            precio = precio_raw.inner_text().strip()
+                            break
+                    except:
+                        continue
+            else:
+                try:
+                    precio = item.query_selector(precios_selectores).inner_text().strip()
+                except:
+                    precio = "No disponible"
             try:
-                precio = item.query_selector(plan["selectores"]["precio"]).inner_text().strip()
+                imagen = item.query_selector(plan["selectores"].get("imagen", "img")).get_attribute("src")
+                if imagen and imagen.startswith("//"):
+                    imagen = "https:" + imagen
             except:
-                precio = "No disponible"
+                imagen = "No disponible"
+
             try:
-                disponibilidad = item.query_selector(plan["selectores"]["disponibilidad"]).inner_text().strip()
+                url_producto = item.query_selector(plan["selectores"].get("url")).get_attribute("href")
+                if url_producto and not url_producto.startswith("http"):
+                    dominio = urlparse(url).netloc
+                    url_producto = f"https://{dominio}{url_producto}"
             except:
-                disponibilidad = "Desconocida"
+                url_producto = "No disponible"
 
             productos.append({
                 "nombre": nombre,
                 "precio": precio,
-                "disponibilidad": disponibilidad
+                "imagen": imagen,
+                "url": url_producto
             })
 
         browser.close()

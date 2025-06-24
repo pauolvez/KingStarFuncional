@@ -2,8 +2,7 @@
   "books.toscrape.com": {
     "selectores": {
       "nombre": ".product_pod h3 a",
-      "precio": ".price_color",
-      "disponibilidad": ".availability"
+      "precio": ".price_color"
     },
     "scroll": false,
     "click_mas": null,
@@ -18,8 +17,9 @@
   "carrefour.es": {
     "selectores": {
       "nombre": ".product-card__title",
-      "precio": ".prices__price--current",
-      "disponibilidad": ".product-card__title"
+      "precio": [".prices__price", ".prices__price--strikethrough"],
+      "imagen": ".media__image",
+      "url": ".product-card__title-link"
     },
     "scroll": true,
     "click_mas": "span[aria-label='Página siguiente']",
