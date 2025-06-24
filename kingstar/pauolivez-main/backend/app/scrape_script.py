@@ -110,8 +110,38 @@ def obtener_selectores_y_plan_con_html(url: str, html: str) -> dict:
 def extraer_con_playwright(plan):
     productos = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, slow_mo=100)
-        page = browser.new_page()
+        browser = p.chromium.launch(
+            headless=False,
+            slow_mo=150,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-infobars",
+                "--disable-extensions",
+                "--disable-web-security",
+                "--start-maximized",
+                "--disable-blink-features",
+                "--disable-features=IsolateOrigins,site-per-process"
+            ]
+        )
+
+        page = context.new_page()
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            locale="es-ES",
+            viewport={"width": 1280, "height": 800},
+            extra_http_headers={
+                "Accept-Language": "es-ES,es;q=0.9"
+            }
+        )
+        page = context.new_page()
+        page.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
+            Object.defineProperty(navigator, 'languages', {get: () => ['es-ES', 'es']});
+        """)
+
 
         for pagina in plan.get("urls", []):
             print(f"[PLAYWRIGHT] Visitando {pagina}")
@@ -248,6 +278,7 @@ def extraer_con_playwright(plan):
                     except Exception as e:
                         print(f"[PLAYWRIGHT] Error al hacer clic en el botón: {e}")
                         break
+        context.storage_state(path=storage_path)
         browser.close()
     return productos
 
@@ -357,10 +388,68 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
 
     productos = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, slow_mo=100)
-        page = browser.new_page()
+        browser = p.chromium.launch(
+            headless=False,
+            slow_mo=150,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-infobars",
+                "--disable-extensions",
+                "--disable-web-security",
+                "--start-maximized",
+                "--disable-blink-features",
+                "--disable-features=IsolateOrigins,site-per-process"
+            ]
+        )
+
+        import os
+        storage_path = os.path.join(os.path.dirname(__file__), "storage", "fnac.json")
+        if not os.path.exists(storage_path):
+            with open(storage_path, "w", encoding="utf-8") as f:
+                f.write("{}")
+
+        context = browser.new_context(
+            storage_state=storage_path,
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            locale="es-ES",
+            viewport={"width": 1280, "height": 800},
+            extra_http_headers={
+                "Accept-Language": "es-ES,es;q=0.9"
+            }
+        )
+
+
+        page = context.new_page()
+        page.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
+            Object.defineProperty(navigator, 'languages', {get: () => ['es-ES', 'es']});
+        """)
         print(f"[SCRAPER] Abriendo página: {url}")
         page.goto(url, timeout=60000)
+
+        # Simulación de navegación humana antes del scraping
+        page.wait_for_load_state("networkidle")
+        time.sleep(3)
+
+        # Scroll inicial
+        for _ in range(3):
+            page.mouse.wheel(0, 300)
+            time.sleep(1)
+
+        # Clic simulado en enlace, luego volver atrás
+        try:
+            enlace = page.query_selector("a[href*='/a']")
+            if enlace:
+                print("[SIMULACIÓN] Clic en un enlace aleatorio antes del scraping...")
+                enlace.click()
+                time.sleep(3)
+                page.go_back()
+                time.sleep(1.5)
+        except:
+            print("[SIMULACIÓN] No se encontró enlace para simular clic.")
 
         try:
             page.wait_for_load_state("domcontentloaded", timeout=10000)
@@ -380,7 +469,6 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
 
         # Scroll adicional
         precio_selectores = plan["selectores"].get("precio")
-        print(f"[VERIFICACIÓN] Buscando selector de precio(s): {precio_selectores}")
         precio_visible = False
 
         for i in range(20):  # Hasta 20 segundos
@@ -397,6 +485,7 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
 
             if precio_visible:
                 print(f"[VERIFICACIÓN] Precio detectado tras {i+1} segundos.")
+
                 break
             time.sleep(1)
 
@@ -422,7 +511,6 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
                 #print(f"[SCROLL ↑] Paso {i+1}")
                 #time.sleep(1.2)
             #time.sleep(2)
-        print("[SCRAPER] Scroll completo.")
         
         # Tiempo extra de seguridad
         print("[SCRAPER] Esperando tiempo adicional por seguridad...")
@@ -459,6 +547,7 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
 
         if not precio_visible:
             print("[❌] No se detectó ningún precio tras 20 segundos. Cancelando scraping.")
+            context.storage_state(path=storage_path)
             browser.close()
             return {"productos": [], "fuente": "playwright", "url": url}
 
@@ -513,6 +602,6 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
                 "imagen": imagen,
                 "url": url_producto
             })
-
+        context.storage_state(path=storage_path)
         browser.close()
     return {"productos": productos, "fuente": "playwright", "url": url}
