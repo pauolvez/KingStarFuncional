@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 import cloudscraper
 from urllib.parse import urlparse
 from app.scraper_graph import ejecutar_scraping_web
-from playwright.sync_api import sync_playwright
+from patchright.sync_api import sync_playwright
 
 STATIC_PLAN_PATH = os.path.join(os.path.dirname(__file__), "static_scraping_plans.json")
 
@@ -127,15 +127,88 @@ def extraer_con_playwright(plan):
         )
 
         page = context.new_page()
+        page.add_init_script("""
+            // Oculta WebDriver
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+
+            // Plugins falsos
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+
+            // Idioma como navegador real
+            Object.defineProperty(navigator, 'languages', { get: () => ['es-ES', 'es'] });
+
+            // Plataforma y fabricante como Windows real
+            Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+            Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
+
+            // Chrome runtime simulado
+            window.chrome = { runtime: {} };
+
+            // Fingerprint WebGL simulado
+            const getParameter = WebGLRenderingContext.prototype.getParameter;
+            WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                if (parameter === 37445) return 'Intel Inc.';
+                if (parameter === 37446) return 'Intel Iris OpenGL Engine';
+                return getParameter.call(this, parameter);
+            };
+
+            // AudioContext fingerprint (opcional)
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            oscillator.frequency.value = 440;
+            oscillator.start(0);
+        """)
         context = browser.new_context(
+            storage_state=storage_path,
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             locale="es-ES",
             viewport={"width": 1280, "height": 800},
             extra_http_headers={
-                "Accept-Language": "es-ES,es;q=0.9"
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Accept-Language": "es-ES,es;q=0.9",
+                "Cache-Control": "max-age=0",
+                "Connection": "keep-alive",
+                "Referer": "https://www.fnac.es/",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-User": "?1",
+                "Upgrade-Insecure-Requests": "1"
             }
         )
         page = context.new_page()
+        page.add_init_script("""
+            // Oculta WebDriver
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+
+            // Plugins falsos
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+
+            // Idioma como navegador real
+            Object.defineProperty(navigator, 'languages', { get: () => ['es-ES', 'es'] });
+
+            // Plataforma y fabricante como Windows real
+            Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+            Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
+
+            // Chrome runtime simulado
+            window.chrome = { runtime: {} };
+
+            // Fingerprint WebGL simulado
+            const getParameter = WebGLRenderingContext.prototype.getParameter;
+            WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                if (parameter === 37445) return 'Intel Inc.';
+                if (parameter === 37446) return 'Intel Iris OpenGL Engine';
+                return getParameter.call(this, parameter);
+            };
+
+            // AudioContext fingerprint (opcional)
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            oscillator.frequency.value = 440;
+            oscillator.start(0);
+        """)
         page.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
             Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
@@ -380,7 +453,7 @@ if __name__ == "__main__":
         print(json.dumps(resultado, indent=2))
 def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
     from urllib.parse import urlparse
-    from playwright.sync_api import sync_playwright
+    from patchright.sync_api import sync_playwright
 
     plan = cargar_plan_estatico(url)
     if not plan or "selectores" not in plan or "apartados" not in plan:
@@ -416,12 +489,53 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
             locale="es-ES",
             viewport={"width": 1280, "height": 800},
             extra_http_headers={
-                "Accept-Language": "es-ES,es;q=0.9"
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Accept-Language": "es-ES,es;q=0.9",
+                "Cache-Control": "max-age=0",
+                "Connection": "keep-alive",
+                "Referer": "https://www.fnac.es/",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-User": "?1",
+                "Upgrade-Insecure-Requests": "1"
             }
         )
 
 
         page = context.new_page()
+        page.add_init_script("""
+            // Oculta WebDriver
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+
+            // Plugins falsos
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+
+            // Idioma como navegador real
+            Object.defineProperty(navigator, 'languages', { get: () => ['es-ES', 'es'] });
+
+            // Plataforma y fabricante como Windows real
+            Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+            Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
+
+            // Chrome runtime simulado
+            window.chrome = { runtime: {} };
+
+            // Fingerprint WebGL simulado
+            const getParameter = WebGLRenderingContext.prototype.getParameter;
+            WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                if (parameter === 37445) return 'Intel Inc.';
+                if (parameter === 37446) return 'Intel Iris OpenGL Engine';
+                return getParameter.call(this, parameter);
+            };
+
+            // AudioContext fingerprint (opcional)
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            oscillator.frequency.value = 440;
+            oscillator.start(0);
+        """)
         page.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
             Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
@@ -429,6 +543,41 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
         """)
         print(f"[SCRAPER] Abriendo página: {url}")
         page.goto(url, timeout=60000)
+        page.wait_for_load_state("networkidle")
+        time.sleep(2.5)
+
+        # Simulación de scroll irregular
+        for i in range(6):
+            scroll_y = 200 + (i * 100)
+            page.mouse.wheel(0, scroll_y)
+            print(f"[SIMULACIÓN] Scroll hacia abajo {scroll_y}px")
+            time.sleep(1.2)
+
+        # Simular pequeños movimientos del ratón
+        for _ in range(5):
+            x = 200 + (_ * 20)
+            y = 300 + (_ * 15)
+            page.mouse.move(x, y)
+            print(f"[SIMULACIÓN] Movimiento del ratón a ({x}, {y})")
+            time.sleep(0.5)
+
+        # Clic en zona segura (no enlaces)
+        try:
+            print("[SIMULACIÓN] Clic en zona aleatoria segura")
+            page.mouse.click(50, 150)
+            time.sleep(0.8)
+        except:
+            pass
+
+        # Simular pulsación de tecla hacia abajo
+        try:
+            page.keyboard.press("ArrowDown")
+            page.keyboard.press("ArrowDown")
+            page.keyboard.press("ArrowUp")
+            print("[SIMULACIÓN] Pulsaciones de flechas simuladas")
+            time.sleep(1)
+        except:
+            pass
 
         # Simulación de navegación humana antes del scraping
         page.wait_for_load_state("networkidle")
