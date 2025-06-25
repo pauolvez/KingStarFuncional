@@ -755,3 +755,4 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
                 print("[AUTO-GUARDADO] Guardando sesión...")
                 context.storage_state(path=storage_path)
     return {"productos": productos, "fuente": "playwright", "url": url}
+
