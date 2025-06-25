@@ -751,6 +751,7 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
                 "imagen": imagen,
                 "url": url_producto
             })
-        context.storage_state(path=storage_path)
-        browser.close()
+            if len(productos) % 10 == 0:
+                print("[AUTO-GUARDADO] Guardando sesión...")
+                context.storage_state(path=storage_path)
     return {"productos": productos, "fuente": "playwright", "url": url}
