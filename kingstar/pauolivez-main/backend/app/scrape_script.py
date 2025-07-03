@@ -282,7 +282,10 @@ def extraer_con_playwright(plan):
                     if isinstance(precios_selectores, list):
                         for sel in precios_selectores:
                             try:
-                                precio_raw = item.query_selector(sel)
+                                if "fnac.es" in dominio:
+                                    precio_raw = item.query_selector(sel) or page.query_selector(sel)
+                                else:
+                                    precio_raw = item.query_selector(sel)
                                 if precio_raw:
                                     precio = precio_raw.inner_text().strip()
                                     break
@@ -290,7 +293,48 @@ def extraer_con_playwright(plan):
                                 continue
                     else:
                         try:
-                            precio = item.query_selector(precios_selectores).inner_text().strip()
+                            from urllib.parse import urlparse
+                            import re
+
+                            # Justo antes de recorrer los productos
+                            dominio = urlparse(url).netloc
+
+                            # Dentro del bucle for item in items:
+                            precio = "No disponible"
+                            precios_selectores = plan["selectores"].get("precio")
+                            if isinstance(precios_selectores, list):
+                                for sel in precios_selectores:
+                                    try:
+                                        if "fnac.es" in dominio:
+                                            precio_raw = item.query_selector(sel) or page.query_selector(sel)
+                                        else:
+                                            precio_raw = item.query_selector(sel)
+                                        if precio_raw:
+                                            texto_precio = precio_raw.inner_text().strip()
+
+                                            # ✅ Solo limpiar si es FNAC
+                                            if "fnac.es" in dominio:
+                                                coincidencias = re.findall(r"\d{1,3}(?:[\.,]\d{2})?\s?€", texto_precio)
+                                                precio = coincidencias[0] if coincidencias else texto_precio
+                                            else:
+                                                precio = texto_precio
+                                            break
+                                    except:
+                                        continue
+                            else:
+                                try:
+                                    precio_raw = item.query_selector(precios_selectores)
+                                    if precio_raw:
+                                        texto_precio = precio_raw.inner_text().strip()
+
+                                        if "fnac.es" in dominio:
+                                            coincidencias = re.findall(r"\d{1,3}(?:[\.,]\d{2})?\s?€", texto_precio)
+                                            precio = coincidencias[0] if coincidencias else texto_precio
+                                        else:
+                                            precio = texto_precio
+                                except:
+                                    precio = "No disponible"
+
                         except:
                             precio = "No disponible"
                     try:
@@ -719,7 +763,10 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
             if isinstance(precios_selectores, list):
                 for sel in precios_selectores:
                     try:
-                        precio_raw = item.query_selector(sel)
+                        if "fnac.es" in dominio:
+                            precio_raw = item.query_selector(sel) or page.query_selector(sel)
+                        else:
+                            precio_raw = item.query_selector(sel)
                         if precio_raw:
                             precio = precio_raw.inner_text().strip()
                             break
@@ -727,7 +774,48 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
                         continue
             else:
                 try:
-                    precio = item.query_selector(precios_selectores).inner_text().strip()
+                    from urllib.parse import urlparse
+                    import re
+
+                    # Justo antes de recorrer los productos
+                    dominio = urlparse(url).netloc
+
+                    # Dentro del bucle for item in items:
+                    precio = "No disponible"
+                    precios_selectores = plan["selectores"].get("precio")
+                    if isinstance(precios_selectores, list):
+                        for sel in precios_selectores:
+                            try:
+                                if "fnac.es" in dominio:
+                                    precio_raw = item.query_selector(sel) or page.query_selector(sel)
+                                else:
+                                    precio_raw = item.query_selector(sel)
+                                if precio_raw:
+                                    texto_precio = precio_raw.inner_text().strip()
+
+                                    # ✅ Solo limpiar si es FNAC
+                                    if "fnac.es" in dominio:
+                                        coincidencias = re.findall(r"\d{1,3}(?:[\.,]\d{2})?\s?€", texto_precio)
+                                        precio = coincidencias[0] if coincidencias else texto_precio
+                                    else:
+                                        precio = texto_precio
+                                    break
+                            except:
+                                continue
+                    else:
+                        try:
+                            precio_raw = item.query_selector(precios_selectores)
+                            if precio_raw:
+                                texto_precio = precio_raw.inner_text().strip()
+
+                                if "fnac.es" in dominio:
+                                    coincidencias = re.findall(r"\d{1,3}(?:[\.,]\d{2})?\s?€", texto_precio)
+                                    precio = coincidencias[0] if coincidencias else texto_precio
+                                else:
+                                    precio = texto_precio
+                        except:
+                            precio = "No disponible"
+
                 except:
                     precio = "No disponible"
             try:

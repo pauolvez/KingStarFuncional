@@ -39,10 +39,12 @@ def generar_urls(base_url, paginador, total_paginas):
             numero = i + inicio_en - 1
             if "?" in base_url:
                 base, existing_query = base_url.split("?", 1)
-                new_query = f"PageIndex={numero}&{existing_query}"
+                # Añadir &SDM=list para FNAC
+                new_query = f"PageIndex={numero}&{existing_query}&SDM=list"
                 urls.append(f"{base}?{new_query}")
             else:
-                urls.append(f"{base_url}?PageIndex={numero}")
+                # Asegurarse de agregar &SDM=list en la URL
+                urls.append(f"{base_url}?PageIndex={numero}&SDM=list")
         else:
             print("❌ Tipo de paginador no soportado.")
             return []

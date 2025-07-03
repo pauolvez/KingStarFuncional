@@ -39,12 +39,12 @@
     },
     "scroll": true,
     "click_mas": null,
-    "apartados": [".productGridItem"],
+    "apartados": [".Article-itemGroup__content"],
     "paginador": {
       "tipo": "query_param",
-      "formato": "PageIndex={NUM}",
+      "formato": "PageIndex={NUM}&SDM=list",
       "inicio_en": 2,
       "incremento": 1
-    }
+  }
   }
 }
