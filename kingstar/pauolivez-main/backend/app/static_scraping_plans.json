@@ -32,10 +32,10 @@
   },
   "fnac.es": {
     "selectores": {
-      "nombre": ".Article-title",
-      "precio": ".userPrice",
-      "imagen": ".Article-itemVisualImg",
-      "url": ".Article-title"
+      "nombre": ".Article-title",          
+      "precio": ".userPrice",              
+      "imagen": ".Article-itemVisualImg",  
+      "url": ".Article-title"              
     },
     "scroll": true,
     "click_mas": null,
@@ -45,6 +45,6 @@
       "formato": "PageIndex={NUM}&SDM=list",
       "inicio_en": 2,
       "incremento": 1
-  }
+    }
   }
 }

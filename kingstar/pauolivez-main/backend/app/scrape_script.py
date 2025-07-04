@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 import cloudscraper
 from urllib.parse import urlparse
 from app.scraper_graph import ejecutar_scraping_web
-from patchright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright
 
 STATIC_PLAN_PATH = os.path.join(os.path.dirname(__file__), "static_scraping_plans.json")
 
@@ -110,22 +110,35 @@ def obtener_selectores_y_plan_con_html(url: str, html: str) -> dict:
 def extraer_con_playwright(plan):
     productos = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=False,
-            slow_mo=150,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-infobars",
-                "--disable-extensions",
-                "--disable-web-security",
-                "--start-maximized",
-                "--disable-blink-features",
-                "--disable-features=IsolateOrigins,site-per-process"
-            ]
-        )
+        browser = p.chromium.launch(headless=False, slow_mo=100)
+        from pathlib import Path
 
+        storage_path = Path("storage_state.json")
+
+        if storage_path.exists():
+            context = browser.new_context(storage_state=storage_path.read_text(encoding="utf-8"))
+            print("[COOKIES] Sesión cargada desde storage_state.json")
+        else:
+            context = browser.new_context(
+                storage_state=storage_path,
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                locale="es-ES",
+                viewport={"width": 1280, "height": 800},
+                extra_http_headers={
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Accept-Language": "es-ES,es;q=0.9",
+                    "Cache-Control": "max-age=0",
+                    "Connection": "keep-alive",
+                    "Referer": "https://www.fnac.es/",
+                    "Sec-Fetch-Dest": "document",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "same-origin",
+                    "Sec-Fetch-User": "?1",
+                    "Upgrade-Insecure-Requests": "1"
+                }
+            )
+            print("[COOKIES] No hay sesión previa. Se usará una nueva.")
         page = context.new_page()
         page.add_init_script("""
             // Oculta WebDriver
@@ -157,62 +170,6 @@ def extraer_con_playwright(plan):
             const oscillator = audioCtx.createOscillator();
             oscillator.frequency.value = 440;
             oscillator.start(0);
-        """)
-        context = browser.new_context(
-            storage_state=storage_path,
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            locale="es-ES",
-            viewport={"width": 1280, "height": 800},
-            extra_http_headers={
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Accept-Language": "es-ES,es;q=0.9",
-                "Cache-Control": "max-age=0",
-                "Connection": "keep-alive",
-                "Referer": "https://www.fnac.es/",
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "same-origin",
-                "Sec-Fetch-User": "?1",
-                "Upgrade-Insecure-Requests": "1"
-            }
-        )
-        page = context.new_page()
-        page.add_init_script("""
-            // Oculta WebDriver
-            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-
-            // Plugins falsos
-            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-
-            // Idioma como navegador real
-            Object.defineProperty(navigator, 'languages', { get: () => ['es-ES', 'es'] });
-
-            // Plataforma y fabricante como Windows real
-            Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
-            Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
-
-            // Chrome runtime simulado
-            window.chrome = { runtime: {} };
-
-            // Fingerprint WebGL simulado
-            const getParameter = WebGLRenderingContext.prototype.getParameter;
-            WebGLRenderingContext.prototype.getParameter = function(parameter) {
-                if (parameter === 37445) return 'Intel Inc.';
-                if (parameter === 37446) return 'Intel Iris OpenGL Engine';
-                return getParameter.call(this, parameter);
-            };
-
-            // AudioContext fingerprint (opcional)
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioCtx.createOscillator();
-            oscillator.frequency.value = 440;
-            oscillator.start(0);
-        """)
-        page.add_init_script("""
-            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
-            Object.defineProperty(navigator, 'languages', {get: () => ['es-ES', 'es']});
         """)
 
 
@@ -282,10 +239,7 @@ def extraer_con_playwright(plan):
                     if isinstance(precios_selectores, list):
                         for sel in precios_selectores:
                             try:
-                                if "fnac.es" in dominio:
-                                    precio_raw = item.query_selector(sel) or page.query_selector(sel)
-                                else:
-                                    precio_raw = item.query_selector(sel)
+                                precio_raw = item.query_selector(sel)
                                 if precio_raw:
                                     precio = precio_raw.inner_text().strip()
                                     break
@@ -293,48 +247,7 @@ def extraer_con_playwright(plan):
                                 continue
                     else:
                         try:
-                            from urllib.parse import urlparse
-                            import re
-
-                            # Justo antes de recorrer los productos
-                            dominio = urlparse(url).netloc
-
-                            # Dentro del bucle for item in items:
-                            precio = "No disponible"
-                            precios_selectores = plan["selectores"].get("precio")
-                            if isinstance(precios_selectores, list):
-                                for sel in precios_selectores:
-                                    try:
-                                        if "fnac.es" in dominio:
-                                            precio_raw = item.query_selector(sel) or page.query_selector(sel)
-                                        else:
-                                            precio_raw = item.query_selector(sel)
-                                        if precio_raw:
-                                            texto_precio = precio_raw.inner_text().strip()
-
-                                            # ✅ Solo limpiar si es FNAC
-                                            if "fnac.es" in dominio:
-                                                coincidencias = re.findall(r"\d{1,3}(?:[\.,]\d{2})?\s?€", texto_precio)
-                                                precio = coincidencias[0] if coincidencias else texto_precio
-                                            else:
-                                                precio = texto_precio
-                                            break
-                                    except:
-                                        continue
-                            else:
-                                try:
-                                    precio_raw = item.query_selector(precios_selectores)
-                                    if precio_raw:
-                                        texto_precio = precio_raw.inner_text().strip()
-
-                                        if "fnac.es" in dominio:
-                                            coincidencias = re.findall(r"\d{1,3}(?:[\.,]\d{2})?\s?€", texto_precio)
-                                            precio = coincidencias[0] if coincidencias else texto_precio
-                                        else:
-                                            precio = texto_precio
-                                except:
-                                    precio = "No disponible"
-
+                            precio = item.query_selector(precios_selectores).inner_text().strip()
                         except:
                             precio = "No disponible"
                     try:
@@ -358,6 +271,9 @@ def extraer_con_playwright(plan):
                         "imagen": imagen,
                         "url": url_producto
                     })
+                    if len(productos) % 10 == 0:
+                        print("[AUTO-GUARDADO] Guardando sesión...")
+                        context.storage_state(path=storage_path)
                 # Manejo de click_mas: selector definido o autodetectar
                 click_selector = plan.get("click_mas")
                 next_button = None
@@ -395,7 +311,8 @@ def extraer_con_playwright(plan):
                     except Exception as e:
                         print(f"[PLAYWRIGHT] Error al hacer clic en el botón: {e}")
                         break
-        context.storage_state(path=storage_path)
+        context.storage_state(path="storage_state.json")
+        print("[COOKIES] Sesión guardada en storage_state.json")
         browser.close()
     return productos
 
@@ -497,7 +414,7 @@ if __name__ == "__main__":
         print(json.dumps(resultado, indent=2))
 def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
     from urllib.parse import urlparse
-    from patchright.sync_api import sync_playwright
+    from playwright.sync_api import sync_playwright
 
     plan = cargar_plan_estatico(url)
     if not plan or "selectores" not in plan or "apartados" not in plan:
@@ -505,86 +422,8 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
 
     productos = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=False,
-            slow_mo=150,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-infobars",
-                "--disable-extensions",
-                "--disable-web-security",
-                "--start-maximized",
-                "--disable-blink-features",
-                "--disable-features=IsolateOrigins,site-per-process"
-            ]
-        )
-
-        import os
-        storage_path = os.path.join(os.path.dirname(__file__), "storage", "fnac.json")
-        if not os.path.exists(storage_path):
-            with open(storage_path, "w", encoding="utf-8") as f:
-                f.write("{}")
-
-        context = browser.new_context(
-            storage_state=storage_path,
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            locale="es-ES",
-            viewport={"width": 1280, "height": 800},
-            extra_http_headers={
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Accept-Language": "es-ES,es;q=0.9",
-                "Cache-Control": "max-age=0",
-                "Connection": "keep-alive",
-                "Referer": "https://www.fnac.es/",
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "same-origin",
-                "Sec-Fetch-User": "?1",
-                "Upgrade-Insecure-Requests": "1"
-            }
-        )
-
-
-        page = context.new_page()
-        page.add_init_script("""
-            // Oculta WebDriver
-            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-
-            // Plugins falsos
-            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-
-            // Idioma como navegador real
-            Object.defineProperty(navigator, 'languages', { get: () => ['es-ES', 'es'] });
-
-            // Plataforma y fabricante como Windows real
-            Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
-            Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
-
-            // Chrome runtime simulado
-            window.chrome = { runtime: {} };
-
-            // Fingerprint WebGL simulado
-            const getParameter = WebGLRenderingContext.prototype.getParameter;
-            WebGLRenderingContext.prototype.getParameter = function(parameter) {
-                if (parameter === 37445) return 'Intel Inc.';
-                if (parameter === 37446) return 'Intel Iris OpenGL Engine';
-                return getParameter.call(this, parameter);
-            };
-
-            // AudioContext fingerprint (opcional)
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioCtx.createOscillator();
-            oscillator.frequency.value = 440;
-            oscillator.start(0);
-        """)
-        page.add_init_script("""
-            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
-            Object.defineProperty(navigator, 'languages', {get: () => ['es-ES', 'es']});
-        """)
+        browser = p.chromium.launch(headless=False, slow_mo=100)
+        page = browser.new_page()
         print(f"[SCRAPER] Abriendo página: {url}")
         page.goto(url, timeout=60000)
         page.wait_for_load_state("networkidle")
@@ -622,28 +461,10 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
             time.sleep(1)
         except:
             pass
-
-        # Simulación de navegación humana antes del scraping
-        page.wait_for_load_state("networkidle")
-        time.sleep(3)
-
-        # Scroll inicial
-        for _ in range(3):
-            page.mouse.wheel(0, 300)
-            time.sleep(1)
-
-        # Clic simulado en enlace, luego volver atrás
-        try:
-            enlace = page.query_selector("a[href*='/a']")
-            if enlace:
-                print("[SIMULACIÓN] Clic en un enlace aleatorio antes del scraping...")
-                enlace.click()
-                time.sleep(3)
-                page.go_back()
-                time.sleep(1.5)
-        except:
-            print("[SIMULACIÓN] No se encontró enlace para simular clic.")
-
+        import random
+        for _ in range(5):
+            x, y = random.randint(100, 800), random.randint(100, 600)
+            page.mouse.move(x, y)
         try:
             page.wait_for_load_state("domcontentloaded", timeout=10000)
             print("[SCRAPER] DOM cargado.")
@@ -659,9 +480,12 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
                 time.sleep(1.5)
         except:
             print("[SCRAPER] No se detectó botón de cookies.")
+        
+        time.sleep(random.uniform(0.5, 1.2))
 
         # Scroll adicional
         precio_selectores = plan["selectores"].get("precio")
+        print(f"[VERIFICACIÓN] Buscando selector de precio(s): {precio_selectores}")
         precio_visible = False
 
         for i in range(20):  # Hasta 20 segundos
@@ -678,7 +502,6 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
 
             if precio_visible:
                 print(f"[VERIFICACIÓN] Precio detectado tras {i+1} segundos.")
-
                 break
             time.sleep(1)
 
@@ -704,8 +527,10 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
                 #print(f"[SCROLL ↑] Paso {i+1}")
                 #time.sleep(1.2)
             #time.sleep(2)
+        print("[SCRAPER] Scroll completo.")
         
         # Tiempo extra de seguridad
+        
         print("[SCRAPER] Esperando tiempo adicional por seguridad...")
         time.sleep(1.5)
 
@@ -740,7 +565,6 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
 
         if not precio_visible:
             print("[❌] No se detectó ningún precio tras 20 segundos. Cancelando scraping.")
-            context.storage_state(path=storage_path)
             browser.close()
             return {"productos": [], "fuente": "playwright", "url": url}
 
@@ -763,10 +587,7 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
             if isinstance(precios_selectores, list):
                 for sel in precios_selectores:
                     try:
-                        if "fnac.es" in dominio:
-                            precio_raw = item.query_selector(sel) or page.query_selector(sel)
-                        else:
-                            precio_raw = item.query_selector(sel)
+                        precio_raw = item.query_selector(sel)
                         if precio_raw:
                             precio = precio_raw.inner_text().strip()
                             break
@@ -774,48 +595,7 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
                         continue
             else:
                 try:
-                    from urllib.parse import urlparse
-                    import re
-
-                    # Justo antes de recorrer los productos
-                    dominio = urlparse(url).netloc
-
-                    # Dentro del bucle for item in items:
-                    precio = "No disponible"
-                    precios_selectores = plan["selectores"].get("precio")
-                    if isinstance(precios_selectores, list):
-                        for sel in precios_selectores:
-                            try:
-                                if "fnac.es" in dominio:
-                                    precio_raw = item.query_selector(sel) or page.query_selector(sel)
-                                else:
-                                    precio_raw = item.query_selector(sel)
-                                if precio_raw:
-                                    texto_precio = precio_raw.inner_text().strip()
-
-                                    # ✅ Solo limpiar si es FNAC
-                                    if "fnac.es" in dominio:
-                                        coincidencias = re.findall(r"\d{1,3}(?:[\.,]\d{2})?\s?€", texto_precio)
-                                        precio = coincidencias[0] if coincidencias else texto_precio
-                                    else:
-                                        precio = texto_precio
-                                    break
-                            except:
-                                continue
-                    else:
-                        try:
-                            precio_raw = item.query_selector(precios_selectores)
-                            if precio_raw:
-                                texto_precio = precio_raw.inner_text().strip()
-
-                                if "fnac.es" in dominio:
-                                    coincidencias = re.findall(r"\d{1,3}(?:[\.,]\d{2})?\s?€", texto_precio)
-                                    precio = coincidencias[0] if coincidencias else texto_precio
-                                else:
-                                    precio = texto_precio
-                        except:
-                            precio = "No disponible"
-
+                    precio = item.query_selector(precios_selectores).inner_text().strip()
                 except:
                     precio = "No disponible"
             try:
@@ -839,8 +619,6 @@ def ejecutar_scraping_una_pagina(url: str, instrucciones: str):
                 "imagen": imagen,
                 "url": url_producto
             })
-            if len(productos) % 10 == 0:
-                print("[AUTO-GUARDADO] Guardando sesión...")
-                context.storage_state(path=storage_path)
-    return {"productos": productos, "fuente": "playwright", "url": url}
 
+        browser.close()
+    return {"productos": productos, "fuente": "playwright", "url": url}

@@ -1,9 +1,28 @@
-pip install fastapi
-pip install uvicorn
-pip install sqlalchemy
-pip install asyncpg
-pip install fastapi-users==14.0.1
-pip install email-validator==2.2.0
-pip install python-dotenv
-pip install pydantic-settings
-pip install playwright
+# --- Core del Backend ---
+fastapi
+uvicorn
+sqlalchemy
+asyncpg
+pydantic-settings
+python-dotenv
+
+# --- Migraciones ---
+alembic
+psycopg2-binary  # necesario para que Alembic funcione con PostgreSQL
+
+# --- Sistema de usuarios ---
+fastapi-users
+fastapi-users-db-sqlalchemy
+email-validator  # validación de emails (obligatorio para fastapi-users)
+
+# --- Scraping y navegación automatizada ---
+playwright
+selenium
+undetected-chromedriver
+selenium-stealth
+beautifulsoup4
+cloudscraper
+requests
+
+# --- Comunicación con APIs externas / IA (ej. Ollama) ---
+httpx
